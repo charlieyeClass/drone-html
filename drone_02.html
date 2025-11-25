@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四軸無人機飛行遊戲：飛向目的地</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: #1a1a2e;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+        }
+        canvas {
+            display: block;
+            background: #87CEEB;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+        #rotorPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 12px;
+        }
+        .rotorBar {
+            width: 80px;
+            height: 12px;
+            background: #333;
+            margin: 3px 0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .rotorFill {
+            height: 100%;
+            transition: width 0.1s;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+        }
+        #overlay h1 {
+            font-size: 36px;
+            color: #FFD700;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #overlay h2 {
+            font-size: 28px;
+            color: #4ECDC4;
+            margin-bottom: 15px;
+        }
+        #overlay p {
+            font-size: 16px;
+            margin: 8px 0;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+        .btn {
+            background: linear-gradient(135deg, #4ECDC4, #44A08D);
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            color: #fff;
+            border-radius: 30px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(78,205,196,0.5);
+        }
+        .controls {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .key {
+            display: inline-block;
+            background: #444;
+            padding: 5px 12px;
+            border-radius: 5px;
+            margin: 2px;
+            border: 1px solid #666;
+        }
+        #pauseHint {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+        .stat {
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            margin: 3px 0;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        #soundBtn {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: #fff;
+            padding: 5px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui">
+            <div class="stat">🏔️ 高度: <span id="altitude">0</span> m</div><br>
+            <div class="stat">💨 速度: <span id="speed">0</span> m/s</div><br>
+            <div class="stat">🔋 電池: <span id="battery">100</span>%</div><br>
+            <div class="stat">📐 傾斜: <span id="tilt">0</span>°</div><br>
+            <div class="stat">🔄 偏航: <span id="yaw">0</span>°</div><br>
+            <div class="stat">🎯 關卡: <span id="level">1</span></div>
+        </div>
+        <div id="rotorPanel">
+            <div>🚁 螺旋槳轉速</div>
+            <div>左前: <span id="r1">50</span>%</div>
+            <div class="rotorBar"><div class="rotorFill" id="rf1" style="width:50%;background:#4ECDC4;"></div></div>
+            <div>右前: <span id="r2">50</span>%</div>
+            <div class="rotorBar"><div class="rotorFill" id="rf2" style="width:50%;background:#4ECDC4;"></div></div>
+            <div>左後: <span id="r3">50</span>%</div>
+            <div class="rotorBar"><div class="rotorFill" id="rf3" style="width:50%;background:#FFD700;"></div></div>
+            <div>右後: <span id="r4">50</span>%</div>
+            <div class="rotorBar"><div class="rotorFill" id="rf4" style="width:50%;background:#FFD700;"></div></div>
+        </div>
+        <button id="soundBtn" onclick="toggleSound()">🔊 音效: 開</button>
+        <div id="pauseHint">按 P 暫停 | WASD/方向鍵 控制</div>
+        <div id="overlay">
+            <h1>🚁 四軸無人機飛行遊戲</h1>
+            <h2>飛向目的地！</h2>
+            <p>透過操控四個螺旋槳的轉速，讓無人機傾斜移動！</p>
+            <div class="controls">
+                <p><strong>🎮 操控說明：</strong></p>
+                <p><span class="key">W</span> 或 <span class="key">↑</span> 增加推力（上升）</p>
+                <p><span class="key">S</span> 或 <span class="key">↓</span> 減少推力（下降）</p>
+                <p><span class="key">A</span> 左傾移動 <span class="key">D</span> 右傾移動</p>
+                <p><span class="key">←</span><span class="key">→</span> 左右偏航旋轉</p>
+            </div>
+            <p>🔬 <strong>物理原理：</strong>當左側螺旋槳減速、右側加速時，<br>機身會向左傾斜，產生水平推力！</p>
+            <button class="btn" onclick="startGame()">🎮 開始遊戲</button>
+        </div>
+    </div>
+
+    <script>
+        // === 遊戲設定 ===
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        
+        let soundEnabled = true;
+        let audioCtx = null;
+        
+        // 畫面尺寸
+        function resizeCanvas() {
+            canvas.width = Math.min(window.innerWidth - 20, 1200);
+            canvas.height = Math.min(window.innerHeight - 20, 600);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // === 遊戲狀態 ===
+        let gameState = 'menu'; // menu, playing, paused, win, lose
+        let currentLevel = 1;
+        let score = 0;
+        let startTime = 0;
+        
+        // === 無人機物理狀態 ===
+        let drone = {
+            x: 100,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            angle: 0,        // 傾斜角 (roll)
+            pitch: 0,        // 俯仰角
+            yawAngle: 0,     // 偏航角
+            yawRate: 0,      // 偏航速度
+            rotors: [50, 50, 50, 50], // 左前、右前、左後、右後 (0-100%)
+            battery: 100,
+            propAngle: 0     // 螺旋槳旋轉角度
+        };
+        
+        // 物理常數
+        const GRAVITY = 0.15;
+        const DRAG = 0.98;
+        const THRUST_POWER = 0.008;
+        const TILT_SPEED = 0.8;
+        const MAX_TILT = 35;
+        const BATTERY_DRAIN = 0.008;
+        
+        // 關卡設定（goalY 根據 canvas 高度動態計算）
+        let levels = [
+            { // 關卡1：基本飛行
+                goalX: 900,
+                goalY: 400, // 會在 resetLevel 中調整
+                wind: 0,
+                obstacles: [],
+                hint: "保持平衡，慢慢飛向紅旗！按住 W 上升，S 下降",
+                learn: "你學會了：四個螺旋槳同速可以懸停！"
+            },
+            { // 關卡2：側風
+                goalX: 850,
+                goalY: 300,
+                wind: 0.04,
+                obstacles: [],
+                hint: "有側風！用反方向傾斜來補償！",
+                learn: "你學會了：傾斜可以抵抗風力！"
+            },
+            { // 關卡3：障礙
+                goalX: 950,
+                goalY: 200,
+                wind: 0.02,
+                obstacles: [
+                    {x: 350, y: 150, w: 30, h: 300},
+                    {x: 550, y: 0, w: 30, h: 350},
+                    {x: 750, y: 100, w: 30, h: 350}
+                ],
+                hint: "小心障礙物！精準控制高度！",
+                learn: "你學會了：精準控制推力來調整高度！"
+            }
+        ];
+        let currentLevelData = levels[0];
+        
+        // 按鍵狀態
+        let keys = {};
+        
+        // === 音效 ===
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        function playBeep(freq, duration, type = 'square') {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.value = 0.1;
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+        
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundBtn').textContent = soundEnabled ? '🔊 音效: 開' : '🔇 音效: 關';
+        }
+        
+        // === 遊戲控制 ===
+        function startGame() {
+            initAudio();
+            resetLevel();
+            gameState = 'playing';
+            overlay.style.display = 'none';
+            startTime = Date.now();
+            playBeep(523, 0.1);
+            playBeep(659, 0.1);
+        }
+        
+        function resetLevel() {
+            currentLevelData = JSON.parse(JSON.stringify(levels[currentLevel - 1]));
+            
+            // 根據畫布大小動態調整目標位置
+            const groundY = canvas.height - 50;
+            if (currentLevel === 1) {
+                currentLevelData.goalX = Math.min(canvas.width - 100, 800);
+                currentLevelData.goalY = groundY - 100; // 靠近地面
+            } else if (currentLevel === 2) {
+                currentLevelData.goalX = Math.min(canvas.width - 100, 750);
+                currentLevelData.goalY = canvas.height / 2; // 中間高度
+            } else if (currentLevel === 3) {
+                currentLevelData.goalX = Math.min(canvas.width - 100, 900);
+                currentLevelData.goalY = 150; // 較高位置
+            }
+            
+            drone = {
+                x: 100,
+                y: groundY - 80, // 從地面附近開始
+                vx: 0,
+                vy: 0,
+                angle: 0,
+                pitch: 0,
+                yawAngle: 0,
+                yawRate: 0,
+                rotors: [52, 52, 52, 52], // 預設懸停轉速
+                battery: 100,
+                propAngle: 0
+            };
+        }
+        
+        function showOverlay(title, subtitle, message, buttonText, buttonAction, learnText = '') {
+            overlay.innerHTML = `
+                <h1>${title}</h1>
+                <h2>${subtitle}</h2>
+                <p>${message}</p>
+                ${learnText ? `<p style="color:#4ECDC4;font-size:18px;margin:15px 0;">💡 ${learnText}</p>` : ''}
+                <button class="btn" onclick="${buttonAction}">${buttonText}</button>
+            `;
+            overlay.style.display = 'flex';
+        }
+        
+        function nextLevel() {
+            currentLevel++;
+            if (currentLevel > 3) {
+                currentLevel = 1;
+                showOverlay('🎉 恭喜通關！', `總分：${score}`, 
+                    '你已經掌握了無人機的基本飛行原理！', 
+                    '🔄 重新開始', 'startGame()',
+                    '對角螺旋槳同向旋轉才能穩定！');
+            } else {
+                resetLevel();
+                gameState = 'playing';
+                overlay.style.display = 'none';
+                startTime = Date.now();
+            }
+        }
+        
+        function restartLevel() {
+            resetLevel();
+            gameState = 'playing';
+            overlay.style.display = 'none';
+            startTime = Date.now();
+        }
+        
+        // === 物理更新 ===
+        function updatePhysics() {
+            if (gameState !== 'playing') return;
+            
+            // 基礎推力 (預設剛好懸停)
+            let baseThrust = 52;
+            let tiltInput = 0;
+            let yawInput = 0;
+            
+            // 處理輸入 - W/S 控制升降
+            if (keys['KeyW']) baseThrust += 30;  // 上升
+            if (keys['KeyS']) baseThrust -= 35;  // 下降（減少推力讓重力拉下）
+            
+            // A/D 控制左右傾斜
+            if (keys['KeyA']) tiltInput = -1;
+            if (keys['KeyD']) tiltInput = 1;
+            
+            // 方向鍵：上下也可升降，左右控制偏航
+            if (keys['ArrowUp']) baseThrust += 30;
+            if (keys['ArrowDown']) baseThrust -= 35;
+            if (keys['ArrowLeft']) yawInput = -1;
+            if (keys['ArrowRight']) yawInput = 1;
+            
+            // 計算四槳轉速（核心物理模擬）
+            // 左前、右前、左後、右後
+            let r1 = baseThrust; // 左前
+            let r2 = baseThrust; // 右前
+            let r3 = baseThrust; // 左後
+            let r4 = baseThrust; // 右後
+            
+            // 傾斜控制：左傾 = 左槳減速，右槳加速
+            r1 += tiltInput * 15;
+            r3 += tiltInput * 15;
+            r2 -= tiltInput * 15;
+            r4 -= tiltInput * 15;
+            
+            // 偏航控制：對角槳差異
+            r1 += yawInput * 10;
+            r4 += yawInput * 10;
+            r2 -= yawInput * 10;
+            r3 -= yawInput * 10;
+            
+            // 限制轉速範圍
+            drone.rotors[0] = Math.max(0, Math.min(100, r1));
+            drone.rotors[1] = Math.max(0, Math.min(100, r2));
+            drone.rotors[2] = Math.max(0, Math.min(100, r3));
+            drone.rotors[3] = Math.max(0, Math.min(100, r4));
+            
+            // 根據槳速差計算傾斜角
+            let leftAvg = (drone.rotors[0] + drone.rotors[2]) / 2;
+            let rightAvg = (drone.rotors[1] + drone.rotors[3]) / 2;
+            let targetAngle = (rightAvg - leftAvg) * 0.5;
+            drone.angle += (targetAngle - drone.angle) * 0.1;
+            drone.angle = Math.max(-MAX_TILT, Math.min(MAX_TILT, drone.angle));
+            
+            // 偏航計算
+            let frontAvg = (drone.rotors[0] + drone.rotors[1]) / 2;
+            let backAvg = (drone.rotors[2] + drone.rotors[3]) / 2;
+            drone.yawRate = ((drone.rotors[0] + drone.rotors[3]) - (drone.rotors[1] + drone.rotors[2])) * 0.02;
+            drone.yawAngle += drone.yawRate;
+            
+            // 計算總推力
+            let totalThrust = drone.rotors.reduce((a, b) => a + b, 0) / 4;
+            let thrustForce = totalThrust * THRUST_POWER;
+            
+            // 推力分解（根據傾斜角）
+            let angleRad = drone.angle * Math.PI / 180;
+            let thrustX = Math.sin(angleRad) * thrustForce;
+            let thrustY = -Math.cos(angleRad) * thrustForce;
+            
+            // 應用物理
+            drone.vx += thrustX;
+            drone.vy += thrustY + GRAVITY;
+            
+            // 風力影響
+            drone.vx += currentLevelData.wind;
+            
+            // 阻力
+            drone.vx *= DRAG;
+            drone.vy *= DRAG;
+            
+            // 更新位置
+            drone.x += drone.vx;
+            drone.y += drone.vy;
+            
+            // 電池消耗
+            let avgRotor = drone.rotors.reduce((a, b) => a + b, 0) / 4;
+            drone.battery -= BATTERY_DRAIN * (avgRotor / 50);
+            
+            // 螺旋槳旋轉
+            drone.propAngle += avgRotor * 0.3;
+            
+            // 碰撞檢測
+            checkCollisions();
+            
+            // 更新UI
+            updateUI();
+        }
+        
+        function checkCollisions() {
+            const groundY = canvas.height - 50;
+            
+            // 地面碰撞
+            if (drone.y > groundY - 20) {
+                if (Math.abs(drone.vy) > 3 || Math.abs(drone.angle) > 20) {
+                    gameOver("墜機了！降落太快或角度太大！");
+                    return;
+                }
+                drone.y = groundY - 20;
+                drone.vy = 0;
+            }
+            
+            // 天花板
+            if (drone.y < 30) {
+                drone.y = 30;
+                drone.vy = 0;
+            }
+            
+            // 牆壁
+            if (drone.x < 30 || drone.x > canvas.width - 30) {
+                gameOver("撞牆了！");
+                return;
+            }
+            
+            // 障礙物碰撞
+            for (let obs of currentLevelData.obstacles) {
+                if (drone.x > obs.x - 25 && drone.x < obs.x + obs.w + 25 &&
+                    drone.y > obs.y - 15 && drone.y < obs.y + obs.h + 15) {
+                    gameOver("撞到障礙物！");
+                    return;
+                }
+            }
+            
+            // 電池耗盡
+            if (drone.battery <= 0) {
+                gameOver("電池耗盡！");
+                return;
+            }
+            
+            // 到達目標
+            let dx = drone.x - currentLevelData.goalX;
+            let dy = drone.y - currentLevelData.goalY;
+            if (Math.sqrt(dx*dx + dy*dy) < 40) {
+                levelComplete();
+            }
+        }
+        
+        function gameOver(reason) {
+            gameState = 'lose';
+            playBeep(200, 0.3);
+            showOverlay('💥 失敗！', reason, 
+                `提示：${currentLevelData.hint}`, 
+                '🔄 重試', 'restartLevel()');
+        }
+        
+        function levelComplete() {
+            gameState = 'win';
+            let timeBonus = Math.max(0, 1000 - (Date.now() - startTime) / 100);
+            let batteryBonus = drone.battery * 10;
+            let levelScore = Math.floor(timeBonus + batteryBonus);
+            score += levelScore;
+            
+            playBeep(523, 0.1);
+            setTimeout(() => playBeep(659, 0.1), 100);
+            setTimeout(() => playBeep(784, 0.2), 200);
+            
+            showOverlay('🎉 過關！', `第 ${currentLevel} 關完成！`, 
+                `本關得分：${levelScore} | 總分：${score}`, 
+                '➡️ 下一關', 'nextLevel()',
+                currentLevelData.learn);
+        }
+        
+        function updateUI() {
+            document.getElementById('altitude').textContent = Math.floor(canvas.height - drone.y - 50);
+            document.getElementById('speed').textContent = Math.floor(Math.sqrt(drone.vx*drone.vx + drone.vy*drone.vy) * 10);
+            document.getElementById('battery').textContent = Math.floor(drone.battery);
+            document.getElementById('tilt').textContent = drone.angle.toFixed(1);
+            document.getElementById('yaw').textContent = drone.yawAngle.toFixed(1);
+            document.getElementById('level').textContent = currentLevel;
+            
+            // 更新螺旋槳顯示
+            for (let i = 0; i < 4; i++) {
+                document.getElementById('r' + (i+1)).textContent = Math.floor(drone.rotors[i]);
+                let fill = document.getElementById('rf' + (i+1));
+                fill.style.width = drone.rotors[i] + '%';
+                // 顏色根據轉速變化
+                if (drone.rotors[i] > 70) fill.style.background = '#FF6B6B';
+                else if (drone.rotors[i] > 40) fill.style.background = '#4ECDC4';
+                else fill.style.background = '#95E1D3';
+            }
+        }
+        
+        // === 繪製 ===
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 天空漸層
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#87CEEB');
+            skyGrad.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 雲朵
+            drawClouds();
+            
+            // 地面
+            ctx.fillStyle = '#7CB342';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+            ctx.fillStyle = '#8BC34A';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 10);
+            
+            // 障礙物
+            ctx.fillStyle = '#795548';
+            for (let obs of currentLevelData.obstacles) {
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                // 頂部裝飾
+                ctx.fillStyle = '#5D4037';
+                ctx.fillRect(obs.x - 5, obs.y, obs.w + 10, 10);
+                ctx.fillStyle = '#795548';
+            }
+            
+            // 風向指示器
+            if (currentLevelData.wind !== 0) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.font = '16px Arial';
+                let windDir = currentLevelData.wind > 0 ? '→' : '←';
+                let windStr = Math.abs(currentLevelData.wind * 100).toFixed(0);
+                ctx.fillText(`💨 風力: ${windDir} ${windStr}`, canvas.width / 2 - 50, 30);
+                ctx.restore();
+            }
+            
+            // 目標旗子
+            drawFlag(currentLevelData.goalX, currentLevelData.goalY);
+            
+            // 無人機
+            drawDrone();
+            
+            // 暫停畫面
+            if (gameState === 'paused') {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 36px Microsoft JhengHei';
+                ctx.textAlign = 'center';
+                ctx.fillText('⏸️ 暫停', canvas.width/2, canvas.height/2 - 40);
+                ctx.font = '18px Microsoft JhengHei';
+                ctx.fillText('💡 提示：' + currentLevelData.hint, canvas.width/2, canvas.height/2 + 10);
+                ctx.fillText('後槳加速 = 向前飛 | 對角槳同向 = 穩定旋轉', canvas.width/2, canvas.height/2 + 40);
+                ctx.fillText('按 P 繼續', canvas.width/2, canvas.height/2 + 80);
+                ctx.textAlign = 'left';
+            }
+        }
+        
+        function drawClouds() {
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            // 簡單雲朵
+            [[100, 60], [300, 100], [500, 50], [700, 80], [900, 70]].forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(x, y, 25, 0, Math.PI * 2);
+                ctx.arc(x + 25, y - 10, 20, 0, Math.PI * 2);
+                ctx.arc(x + 50, y, 25, 0, Math.PI * 2);
+                ctx.arc(x + 25, y + 10, 18, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        function drawFlag(x, y) {
+            // 閃爍效果
+            const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+            
+            // 目標圈（大圈，更明顯）
+            ctx.strokeStyle = `rgba(255, 215, 0, ${pulse})`;
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 5]);
+            ctx.beginPath();
+            ctx.arc(x, y + 20, 55, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 內圈
+            ctx.strokeStyle = `rgba(76, 175, 80, ${pulse})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y + 20, 35, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // 旗桿（更長）
+            ctx.strokeStyle = '#5D4037';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(x, y - 10);
+            ctx.lineTo(x, y + 100);
+            ctx.stroke();
+            
+            // 旗桿頂球
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(x, y - 15, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 紅旗（更大，帶波浪效果）
+            const wave = Math.sin(Date.now() / 300) * 3;
+            ctx.fillStyle = '#E53935';
+            ctx.beginPath();
+            ctx.moveTo(x, y - 10);
+            ctx.quadraticCurveTo(x + 35 + wave, y + 5, x + 55, y + 15 + wave);
+            ctx.quadraticCurveTo(x + 35, y + 25, x, y + 40);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 旗子邊框
+            ctx.strokeStyle = '#B71C1C';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 「目標」文字
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Microsoft JhengHei';
+            ctx.textAlign = 'center';
+            ctx.fillText('🎯 目標', x, y + 75);
+            ctx.textAlign = 'left';
+        }
+        
+        function drawDrone() {
+            ctx.save();
+            ctx.translate(drone.x, drone.y);
+            ctx.rotate(drone.angle * Math.PI / 180);
+            
+            // 機身
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-30, -5, 60, 10);
+            ctx.fillRect(-5, -25, 10, 50);
+            
+            // 中心
+            ctx.fillStyle = '#4CAF50';
+            ctx.beginPath();
+            ctx.arc(0, 0, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 四個螺旋槳臂
+            const rotorPos = [[-25, -20], [25, -20], [-25, 20], [25, 20]];
+            
+            rotorPos.forEach((pos, i) => {
+                // 馬達
+                ctx.fillStyle = '#666';
+                ctx.beginPath();
+                ctx.arc(pos[0], pos[1], 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 螺旋槳（旋轉）
+                ctx.save();
+                ctx.translate(pos[0], pos[1]);
+                let rotorSpeed = drone.rotors[i] / 50;
+                ctx.rotate(drone.propAngle * rotorSpeed * (i % 2 === 0 ? 1 : -1) * Math.PI / 180);
+                
+                // 槳葉顏色根據轉速
+                let hue = 120 - drone.rotors[i];
+                ctx.strokeStyle = `hsl(${hue}, 80%, 50%)`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-12, 0);
+                ctx.lineTo(12, 0);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, -12);
+                ctx.lineTo(0, 12);
+                ctx.stroke();
+                
+                ctx.restore();
+            });
+            
+            // 方向指示（前方）
+            ctx.fillStyle = '#FF5722';
+            ctx.beginPath();
+            ctx.moveTo(0, -30);
+            ctx.lineTo(-5, -22);
+            ctx.lineTo(5, -22);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+            
+            // 推力向量視覺化
+            if (gameState === 'playing') {
+                let avgThrust = drone.rotors.reduce((a, b) => a + b, 0) / 4;
+                let thrustLen = avgThrust * 0.3;
+                ctx.strokeStyle = 'rgba(255, 152, 0, 0.7)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(drone.x, drone.y + 15);
+                ctx.lineTo(drone.x, drone.y + 15 + thrustLen);
+                ctx.stroke();
+            }
+        }
+        
+        // === 遊戲循環 ===
+        function gameLoop() {
+            updatePhysics();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // === 事件處理 ===
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
+            if (e.code === 'KeyP' && gameState === 'playing') {
+                gameState = 'paused';
+            } else if (e.code === 'KeyP' && gameState === 'paused') {
+                gameState = 'playing';
+            }
+            
+            // 防止方向鍵滾動頁面
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+        
+        // 開始遊戲循環
+        gameLoop();
+    </script>
+</body>
+</html>
