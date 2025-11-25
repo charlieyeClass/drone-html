@@ -178,10 +178,10 @@
             <p>透過操控四個螺旋槳的轉速，讓無人機傾斜移動！</p>
             <div class="controls">
                 <p><strong>🎮 操控說明：</strong></p>
-                <p><span class="key">W</span> 或 <span class="key">↑</span> 增加推力（上升）</p>
-                <p><span class="key">S</span> 或 <span class="key">↓</span> 減少推力（下降）</p>
-                <p><span class="key">A</span> 左傾移動 <span class="key">D</span> 右傾移動</p>
-                <p><span class="key">←</span><span class="key">→</span> 左右偏航旋轉</p>
+                <p><span class="key">↑</span> 上升 <span class="key">↓</span> 下降</p>
+                <p><span class="key">←</span> 順時針旋轉 <span class="key">→</span> 逆時針旋轉</p>
+                <p><span class="key">W</span> 前進 <span class="key">S</span> 後退</p>
+                <p><span class="key">A</span> 左移 <span class="key">D</span> 右移</p>
             </div>
             <p>🔬 <strong>物理原理：</strong>當左側螺旋槳減速、右側加速時，<br>機身會向左傾斜，產生水平推力！</p>
             <button class="btn" onclick="startGame()">🎮 開始遊戲</button>
@@ -241,7 +241,7 @@
                 goalY: 400, // 會在 resetLevel 中調整
                 wind: 0,
                 obstacles: [],
-                hint: "保持平衡，慢慢飛向紅旗！按住 W 上升，S 下降",
+                hint: "保持平衡，慢慢飛向紅旗！按 ↑ 上升，↓ 下降，W 前進",
                 learn: "你學會了：四個螺旋槳同速可以懸停！"
             },
             { // 關卡2：側風
@@ -380,22 +380,23 @@
             
             // 基礎推力 (預設剛好懸停)
             let baseThrust = 52;
-            let tiltInput = 0;
-            let yawInput = 0;
+            let tiltInput = 0;      // 左右傾斜 (roll)
+            let pitchInput = 0;     // 前後俯仰 (pitch)
+            let yawInput = 0;       // 偏航旋轉
             
-            // 處理輸入 - W/S 控制升降
-            if (keys['KeyW']) baseThrust += 30;  // 上升
-            if (keys['KeyS']) baseThrust -= 35;  // 下降（減少推力讓重力拉下）
+            // 方向鍵：↑↓ 控制升降
+            if (keys['ArrowUp']) baseThrust += 30;     // 上升
+            if (keys['ArrowDown']) baseThrust -= 35;   // 下降
             
-            // A/D 控制左右傾斜
-            if (keys['KeyA']) tiltInput = -1;
-            if (keys['KeyD']) tiltInput = 1;
+            // 方向鍵：←→ 控制偏航旋轉
+            if (keys['ArrowLeft']) yawInput = 1;       // 順時針旋轉
+            if (keys['ArrowRight']) yawInput = -1;     // 逆時針旋轉
             
-            // 方向鍵：上下也可升降，左右控制偏航
-            if (keys['ArrowUp']) baseThrust += 30;
-            if (keys['ArrowDown']) baseThrust -= 35;
-            if (keys['ArrowLeft']) yawInput = -1;
-            if (keys['ArrowRight']) yawInput = 1;
+            // WASD：控制前後左右移動
+            if (keys['KeyW']) pitchInput = 1;   // 前進（前傾）
+            if (keys['KeyS']) pitchInput = -1;  // 後退（後傾）
+            if (keys['KeyA']) tiltInput = -1;   // 左移（左傾）
+            if (keys['KeyD']) tiltInput = 1;    // 右移（右傾）
             
             // 計算四槳轉速（核心物理模擬）
             // 左前、右前、左後、右後
@@ -404,13 +405,20 @@
             let r3 = baseThrust; // 左後
             let r4 = baseThrust; // 右後
             
-            // 傾斜控制：左傾 = 左槳減速，右槳加速
+            // 傾斜控制（A/D 左右移動）：左傾 = 左槳減速，右槳加速
             r1 += tiltInput * 15;
             r3 += tiltInput * 15;
             r2 -= tiltInput * 15;
             r4 -= tiltInput * 15;
             
-            // 偏航控制：對角槳差異
+            // 俯仰控制（W/S 前進後退）：前傾 = 前槳減速，後槳加速
+            // 在2D側視圖中：前進 = 向右移動
+            r1 -= pitchInput * 15;  // 前槳
+            r2 -= pitchInput * 15;  // 前槳
+            r3 += pitchInput * 15;  // 後槳
+            r4 += pitchInput * 15;  // 後槳
+            
+            // 偏航控制（←→ 旋轉）：對角槳差異
             r1 += yawInput * 10;
             r4 += yawInput * 10;
             r2 -= yawInput * 10;
@@ -422,16 +430,21 @@
             drone.rotors[2] = Math.max(0, Math.min(100, r3));
             drone.rotors[3] = Math.max(0, Math.min(100, r4));
             
-            // 根據槳速差計算傾斜角
+            // 根據槳速差計算傾斜角（左右 roll）
             let leftAvg = (drone.rotors[0] + drone.rotors[2]) / 2;
             let rightAvg = (drone.rotors[1] + drone.rotors[3]) / 2;
             let targetAngle = (rightAvg - leftAvg) * 0.5;
             drone.angle += (targetAngle - drone.angle) * 0.1;
             drone.angle = Math.max(-MAX_TILT, Math.min(MAX_TILT, drone.angle));
             
-            // 偏航計算
+            // 根據前後槳速差計算俯仰角（前後 pitch）
             let frontAvg = (drone.rotors[0] + drone.rotors[1]) / 2;
             let backAvg = (drone.rotors[2] + drone.rotors[3]) / 2;
+            let targetPitch = (backAvg - frontAvg) * 0.5;
+            drone.pitch += (targetPitch - drone.pitch) * 0.1;
+            drone.pitch = Math.max(-MAX_TILT, Math.min(MAX_TILT, drone.pitch));
+            
+            // 偏航計算
             drone.yawRate = ((drone.rotors[0] + drone.rotors[3]) - (drone.rotors[1] + drone.rotors[2])) * 0.02;
             drone.yawAngle += drone.yawRate;
             
@@ -439,10 +452,13 @@
             let totalThrust = drone.rotors.reduce((a, b) => a + b, 0) / 4;
             let thrustForce = totalThrust * THRUST_POWER;
             
-            // 推力分解（根據傾斜角）
+            // 推力分解（根據傾斜角和俯仰角）
             let angleRad = drone.angle * Math.PI / 180;
-            let thrustX = Math.sin(angleRad) * thrustForce;
-            let thrustY = -Math.cos(angleRad) * thrustForce;
+            let pitchRad = drone.pitch * Math.PI / 180;
+            
+            // 側傾產生左右移動，俯仰產生前後移動（2D中前後=左右）
+            let thrustX = Math.sin(angleRad) * thrustForce + Math.sin(pitchRad) * thrustForce;
+            let thrustY = -Math.cos(angleRad) * Math.cos(pitchRad) * thrustForce;
             
             // 應用物理
             drone.vx += thrustX;
