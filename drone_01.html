@@ -498,7 +498,6 @@
 </head>
 <body>
     <h1>🚁 四軸無人機飛行原理</h1>
-    
     <div class="main-container">
         <!-- 主控制區 -->
         <div class="panel drone-control">
@@ -539,7 +538,7 @@
                         <div class="propeller-blade" id="blade-3"></div>
                         <div class="propeller-center"></div>
                     </div>
-                    <div class="rotation-indicator">↻ 順時針</div>
+                    <div class="rotation-indicator">↺ 逆時針</div>
                 </div>
                 
                 <!-- 螺旋槳 4 (右下) -->
@@ -549,7 +548,7 @@
                         <div class="propeller-blade" id="blade-4"></div>
                         <div class="propeller-center"></div>
                     </div>
-                    <div class="rotation-indicator">↺ 逆時針</div>
+                    <div class="rotation-indicator">↻ 順時針</div>
                 </div>
             </div>
 
@@ -643,8 +642,8 @@
                 <div class="info-card">
                     <h3>🔄 為什麼對角槳要反向旋轉？</h3>
                     <p>
-                        <span class="highlight-red">1號、3號槳（對角）順時針轉</span><br>
-                        <span class="highlight-blue">2號、4號槳（對角）逆時針轉</span><br><br>
+                        <span class="highlight-red">1號、4號槳（對角）順時針轉</span><br>
+                        <span class="highlight-blue">2號、3號槳（對角）逆時針轉</span><br><br>
                         這樣設計是為了<strong>抵消扭力</strong>！如果四個槳都同方向轉，無人機的機身會反方向旋轉而失控。
                     </p>
                 </div>
@@ -673,8 +672,8 @@
                 <div class="info-card">
                     <h3>🔄 如何原地旋轉（偏航）？</h3>
                     <ul>
-                        <li><strong>順時針轉：</strong>增加<span class="highlight-blue">2、4號槳</span>（逆時針槳）的轉速</li>
-                        <li><strong>逆時針轉：</strong>增加<span class="highlight-red">1、3號槳</span>（順時針槳）的轉速</li>
+                        <li><strong>順時針轉：</strong>增加<span class="highlight-blue">2、3號槳</span>（逆時針槳）的轉速</li>
+                        <li><strong>逆時針轉：</strong>增加<span class="highlight-red">1、4號槳</span>（順時針槳）的轉速</li>
                     </ul>
                     <p>這會製造扭力不平衡，讓機身轉動！</p>
                 </div>
@@ -727,8 +726,8 @@
                 if (speed > 0) {
                     const duration = Math.max(0.1, 2 - (speed / 50)); // 轉速越快，動畫越快
                     blade.style.animationDuration = duration + 's';
-                    // 1、3號順時針，2、4號逆時針
-                    if (i === 0 || i === 2) {
+                    // 1、4號順時針，2、3號逆時針
+                    if (i === 0 || i === 3) {
                         blade.className = 'propeller-blade spinning-cw';
                     } else {
                         blade.className = 'propeller-blade spinning-ccw';
@@ -753,9 +752,9 @@
             const rightSpeed = speeds[1] + speeds[3];
             const lrDiff = rightSpeed - leftSpeed;
 
-            // 偏航：比較(1+3) vs (2+4) - 順時針槳 vs 逆時針槳
-            const cwSpeed = speeds[0] + speeds[2]; // 順時針槳
-            const ccwSpeed = speeds[1] + speeds[3]; // 逆時針槳
+            // 偏航：比較(1+4) vs (2+3) - 順時針槳 vs 逆時針槳
+            const cwSpeed = speeds[0] + speeds[3]; // 順時針槳 (1、4號)
+            const ccwSpeed = speeds[1] + speeds[2]; // 逆時針槳 (2、3號)
             const yawDiff = ccwSpeed - cwSpeed;
 
             // 更新垂直狀態
@@ -831,10 +830,12 @@
                     values = [45, 45, 65, 65];
                     break;
                 case 'leftTurn':
-                    values = [65, 45, 65, 45];
+                    // 逆時針轉：增加1、4號槳（順時針槳）的轉速
+                    values = [65, 45, 45, 65];
                     break;
                 case 'rightTurn':
-                    values = [45, 65, 45, 65];
+                    // 順時針轉：增加2、3號槳（逆時針槳）的轉速
+                    values = [45, 65, 65, 45];
                     break;
             }
             
