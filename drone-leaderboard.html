@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Competition Leaderboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        /* Initial Setup Screen */
+        #initialScreen {
+            text-align: center;
+        }
+
+        .group-input {
+            margin: 30px 0;
+        }
+
+        .group-input label {
+            display: block;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .group-input input[type="number"] {
+            padding: 15px 25px;
+            font-size: 1.5em;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            width: 150px;
+            text-align: center;
+            outline: none;
+        }
+
+        .group-input input[type="number"]:focus {
+            border-color: #f5576c;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 0.9em;
+        }
+
+        /* Leaderboard Screen */
+        #leaderboardScreen {
+            display: none;
+        }
+
+        /* Victory Stand */
+        .victory-stand {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 20px;
+            margin: 30px 0;
+            padding: 30px;
+            background: linear-gradient(135deg, #f5ee7c 0%, #ffd700 100%);
+            border-radius: 15px;
+        }
+
+        .podium {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 120px;
+        }
+
+        .podium.first {
+            background: #ffd700;
+            padding: 20px;
+            transform: scale(1.1);
+        }
+
+        .podium.second {
+            background: #c0c0c0;
+            padding: 15px;
+        }
+
+        .podium.third {
+            background: #cd7f32;
+            padding: 15px;
+        }
+
+        .podium .medal {
+            font-size: 2.5em;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .podium .group-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .podium .time {
+            font-size: 1em;
+            color: #666;
+        }
+
+        /* Sorting Controls */
+        .sorting-controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .sort-btn {
+            padding: 12px 25px;
+            font-size: 1em;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sort-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* Leaderboard Table */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .leaderboard-table th,
+        .leaderboard-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 2px solid #eee;
+        }
+
+        .leaderboard-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .leaderboard-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .edit-group-name {
+            padding: 5px 10px;
+            font-size: 0.9em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 150px;
+        }
+
+        /* Time Entry Section */
+        .time-entry {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .time-entry h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .entry-form {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .time-hint {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .reset-btn {
+            display: block;
+            margin: 30px auto 0;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        /* Group Edit Section */
+        .group-list {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .group-list h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .group-edit-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .group-edit-row .group-id {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 60px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .victory-stand {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .podium {
+                transform: none;
+            }
+
+            .podium.first {
+                order: 1;
+            }
+
+            .podium.second {
+                order: 2;
+            }
+
+            .podium.third {
+                order: 3;
+            }
+
+            .entry-form {
+                flex-direction: column;
+            }
+
+            .form-group {
+                width: 100%;
+            }
+
+            .leaderboard-table {
+                font-size: 0.9em;
+            }
+
+            .leaderboard-table th,
+            .leaderboard-table td {
+                padding: 10px;
+            }
+        }
+
+        /* Utility */
+        .hidden {
+            display: none;
+        }
+
+        /* Highlight best time */
+        .best-time {
+            background-color: #ffd700;
+            font-weight: bold;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-delete {
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .btn-edit {
+            background: #4facfe;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚁 DRONE COMPETITION LEADERBOARD 🚁</h1>
+        </div>
+
+        <div class="content">
+            <!-- Initial Setup Screen -->
+            <div id="initialScreen">
+                <div class="group-input">
+                    <label for="numGroups">Enter Number of Groups:</label>
+                    <br>
+                    <input type="number" id="numGroups" min="1" max="100" value="5">
+                </div>
+                <button class="btn btn-primary" onclick="startCompetition()">Start Competition</button>
+            </div>
+
+            <!-- Leaderboard Screen -->
+            <div id="leaderboardScreen">
+                <!-- Victory Stand -->
+                <div class="victory-stand" id="victoryStand">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <!-- Time Entry Section -->
+                <div class="time-entry">
+                    <h3>📝 NEW TIME ENTRY</h3>
+                    <div class="entry-form">
+                        <div class="form-group">
+                            <label for="entryGroup">Select Group:</label>
+                            <select id="entryGroup"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="timeInput">Time (mmssSSS format):</label>
+                            <input type="text" id="timeInput" placeholder="mmssSSS (e.g., 0405233)" maxlength="7" pattern="\d{7}" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            <div class="time-hint">Format: mm:ss.SSS (e.g., 04:05.233 → 0405233)</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="groupEditInput">Group Name:</label>
+                            <input type="text" id="groupEditInput" placeholder="Enter group name">
+                        </div>
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-success" onclick="submitTime()">Submit Time</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sorting Controls -->
+                <div class="sorting-controls">
+                    <button class="sort-btn active" id="sortByTime" onclick="sortByTime()">
+                        ⏱️ Fastest Time
+                    </button>
+                    <button class="sort-btn" id="sortByGroup" onclick="sortByGroup()">
+                        🔢 Group No
+                    </button>
+                </div>
+
+                <!-- Leaderboard Table -->
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Group Name</th>
+                            <th>Best Time</th>
+                            <th>2nd Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+
+                <!-- Reset Button -->
+                <button class="btn btn-danger reset-btn" onclick="resetAll()">🔄 Reset All Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Storage
+        let groups = [];
+        let config = {
+            sortBy: 'time',
+            lastGroupId: 0
+        };
+
+        // Time formatting
+        function formatTime(ms) {
+            const minutes = Math.floor(ms / 60000);
+            const seconds = Math.floor((ms % 60000) / 1000);
+            const millis = ms % 1000;
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
+        }
+
+        // Parse time input (mmssSSS → ms)
+        function parseTimeInput(input) {
+            if (!/^\d{7}$/.test(input)) {
+                return null;
+            }
+            const minutes = parseInt(input.substring(0, 2));
+            const seconds = parseInt(input.substring(2, 4));
+            const millis = parseInt(input.substring(4, 7));
+            return (minutes * 60000) + (seconds * 1000) + millis;
+        }
+
+        // Save to localStorage
+        function saveData() {
+            localStorage.setItem('droneLeaderboardGroups', JSON.stringify(groups));
+            localStorage.setItem('droneLeaderboardConfig', JSON.stringify(config));
+        }
+
+        // Load from localStorage
+        function loadData() {
+            const savedGroups = localStorage.getItem('droneLeaderboardGroups');
+            const savedConfig = localStorage.getItem('droneLeaderboardConfig');
+            if (savedGroups) {
+                groups = JSON.parse(savedGroups);
+                config.lastGroupId = Math.max(...groups.map(g => g.id));
+            }
+            if (savedConfig) {
+                config = { ...config, ...JSON.parse(savedConfig) };
+            }
+        }
+
+        // Start Competition
+        function startCompetition() {
+            const numGroups = parseInt(document.getElementById('numGroups').value);
+            if (numGroups < 1 || numGroups > 100) {
+                alert('Please enter a number between 1 and 100');
+                return;
+            }
+
+            // Reset and create groups
+            groups = [];
+            for (let i = 1; i <= numGroups; i++) {
+                groups.push({
+                    id: i,
+                    name: `Group ${i}`,
+                    times: []
+                });
+            }
+            config.lastGroupId = numGroups;
+            config.sortBy = 'time';
+            saveData();
+
+            showLeaderboard();
+        }
+
+        // Show leaderboard screen
+        function showLeaderboard() {
+            document.getElementById('initialScreen').style.display = 'none';
+            document.getElementById('leaderboardScreen').style.display = 'block';
+            updateLeaderboard();
+        }
+
+        // Update leaderboard display
+        function updateLeaderboard() {
+            updateVictoryStand();
+            updateSortButtons();
+            updateLeaderboardBody();
+            updateGroupSelect();
+        }
+
+        // Update victory stand
+        function updateVictoryStand() {
+            const stand = document.getElementById('victoryStand');
+
+            if (groups.length < 1) {
+                stand.innerHTML = '<p style="text-align:center;color:#666;">No data yet!</p>';
+                return;
+            }
+
+            // Get top 3 (sorted by best time)
+            const sortedGroups = [...groups].map(g => {
+                const bestTime = Math.min(...g.times);
+                return { ...g, bestTime };
+            }).sort((a, b) => a.bestTime - b.bestTime);
+
+            const podium = [
+                { type: 'third', data: sortedGroups[2] },
+                { type: 'first', data: sortedGroups[0] },
+                { type: 'second', data: sortedGroups[1] }
+            ];
+
+            stand.innerHTML = podium.map(item => {
+                if (!item.data) return '';
+                return `
+                    <div class="podium ${item.type}">
+                        <span class="medal">${item.type === 'first' ? '🥇' : item.type === 'second' ? '🥈' : '🥉'}</span>
+                        <div class="group-name">${item.data.name}</div>
+                        <div class="time">${formatTime(item.data.bestTime)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update sort buttons
+        function updateSortButtons() {
+            document.getElementById('sortByTime').classList.toggle('active', config.sortBy === 'time');
+            document.getElementById('sortByGroup').classList.toggle('active', config.sortBy === 'group');
+        }
+
+        // Update leaderboard body
+        function updateLeaderboardBody() {
+            const tbody = document.getElementById('leaderboardBody');
+            const sortedGroups = getSortedGroups();
+
+            tbody.innerHTML = sortedGroups.map((g, index) => {
+                const bestTime = Math.min(...g.times);
+                const secondTime = g.times.length > 1 ? Math.min(...g.times.filter(t => t !== bestTime)) : null;
+                const bestTimeStr = formatTime(bestTime);
+                const secondTimeStr = secondTime !== null ? formatTime(secondTime) : '';
+                const bestTimeClass = g.times[0] === bestTime ? 'best-time' : '';
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>
+                            <input type="text" class="edit-group-name" value="${g.name}"
+                                onchange="updateGroupName(${g.id}, this.value)"
+                                placeholder="Enter group name">
+                        </td>
+                        <td class="${bestTimeClass}">${bestTimeStr}</td>
+                        <td>${secondTimeStr}</td>
+                        <td class="action-btns">
+                            <button class="btn-edit" onclick="editGroup(${g.id})">✏️</button>
+                            <button class="btn-delete" onclick="deleteGroup(${g.id})">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Get sorted groups
+        function getSortedGroups() {
+            const sorted = [...groups].map(g => {
+                const bestTime = Math.min(...g.times);
+                return { ...g, bestTime };
+            });
+
+            if (config.sortBy === 'time') {
+                sorted.sort((a, b) => a.bestTime - b.bestTime);
+            } else {
+                sorted.sort((a, b) => a.id - b.id);
+            }
+            return sorted;
+        }
+
+        // Update group name
+        function updateGroupName(id, newName) {
+            const group = groups.find(g => g.id === id);
+            if (group) {
+                group.name = newName;
+                saveData();
+                updateVictoryStand();
+            }
+        }
+
+        // Update group select dropdown
+        function updateGroupSelect() {
+            const select = document.getElementById('entryGroup');
+            const currentValue = select.value;
+            select.innerHTML = groups.map(g => `
+                <option value="${g.id}">${g.name}</option>
+            `).join('');
+            if (currentValue) {
+                select.value = currentValue;
+            } else if (groups.length > 0) {
+                select.value = groups[0].id;
+            }
+        }
+
+        // Edit group
+        function editGroup(id) {
+            const group = groups.find(g => g.id === id);
+            if (group) {
+                document.getElementById('entryGroup').value = id;
+                document.getElementById('groupEditInput').value = group.name;
+            }
+        }
+
+        // Delete group
+        function deleteGroup(id) {
+            if (confirm(`Are you sure you want to delete ${groups.find(g => g.id === id)?.name}?`)) {
+                groups = groups.filter(g => g.id !== id);
+                config.lastGroupId = Math.max(...groups.map(g => g.id), 0);
+                saveData();
+                updateLeaderboard();
+            }
+        }
+
+        // Submit time
+        function submitTime() {
+            const groupId = parseInt(document.getElementById('entryGroup').value);
+            const timeInput = document.getElementById('timeInput').value;
+            const groupName = document.getElementById('groupEditInput').value;
+
+            if (!groupId || isNaN(groupId)) {
+                alert('Please select a group');
+                return;
+            }
+
+            if (!/^\d{7}$/.test(timeInput)) {
+                alert('Please enter time in mmssSSS format (7 digits, e.g., 0405233 for 04:05.233)');
+                return;
+            }
+
+            const timeMs = parseTimeInput(timeInput);
+            if (!timeMs) {
+                alert('Invalid time format');
+                return;
+            }
+
+            const group = groups.find(g => g.id === groupId);
+            if (group) {
+                group.times.push(timeMs);
+                if (groupName.trim()) {
+                    group.name = groupName.trim();
+                }
+                saveData();
+                document.getElementById('timeInput').value = '';
+                updateLeaderboard();
+            }
+        }
+
+        // Sort by time
+        function sortByTime() {
+            config.sortBy = 'time';
+            saveData();
+            updateLeaderboard();
+        }
+
+        // Sort by group
+        function sortByGroup() {
+            config.sortBy = 'group';
+            saveData();
+            updateLeaderboard();
+        }
+
+        // Reset all data
+        function resetAll() {
+            if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
+                localStorage.removeItem('droneLeaderboardGroups');
+                localStorage.removeItem('droneLeaderboardConfig');
+                groups = [];
+                config = { sortBy: 'time', lastGroupId: 0 };
+                document.getElementById('numGroups').value = '5';
+                document.getElementById('leaderboardScreen').style.display = 'none';
+                document.getElementById('initialScreen').style.display = 'block';
+            }
+        }
+
+        // Load data on startup
+        loadData();
+    </script>
+</body>
+</html>
