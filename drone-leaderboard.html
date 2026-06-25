@@ -562,21 +562,31 @@
         function updateVictoryStand() {
             const stand = document.getElementById('victoryStand');
 
-            if (groups.length < 1) {
+            // Get groups with valid best times (groups must have at least one time)
+            const groupsWithTimes = [...groups]
+                .filter(g => g.times.length > 0)
+                .map(g => {
+                    const bestTime = Math.min(...g.times);
+                    return { ...g, bestTime };
+                });
+
+            // Show "No data yet!" if no groups have times
+            if (groupsWithTimes.length === 0) {
                 stand.innerHTML = '<p style="text-align:center;color:#666;">No data yet!</p>';
                 return;
             }
 
-            // Get top 3 (sorted by best time)
-            const sortedGroups = [...groups].map(g => {
-                const bestTime = Math.min(...g.times);
-                return { ...g, bestTime };
-            }).sort((a, b) => a.bestTime - b.bestTime);
+            // Sort by best time (ascending = fastest first)
+            groupsWithTimes.sort((a, b) => a.bestTime - b.bestTime);
 
+            // Get top 3
+            const top3 = groupsWithTimes.slice(0, 3);
+
+            // Create podium: third, first, second (first in middle, highest)
             const podium = [
-                { type: 'third', data: sortedGroups[2] },
-                { type: 'first', data: sortedGroups[0] },
-                { type: 'second', data: sortedGroups[1] }
+                { type: 'third', data: top3[2] },
+                { type: 'first', data: top3[0] },
+                { type: 'second', data: top3[1] }
             ];
 
             stand.innerHTML = podium.map(item => {
@@ -603,11 +613,11 @@
             const sortedGroups = getSortedGroups();
 
             tbody.innerHTML = sortedGroups.map((g, index) => {
-                const bestTime = Math.min(...g.times);
-                const secondTime = g.times.length > 1 ? Math.min(...g.times.filter(t => t !== bestTime)) : null;
-                const bestTimeStr = formatTime(bestTime);
-                const secondTimeStr = secondTime !== null ? formatTime(secondTime) : '';
-                const bestTimeClass = g.times[0] === bestTime ? 'best-time' : '';
+                const bestTime = g.times.length > 0 ? Math.min(...g.times) : null;
+                const secondTime = g.times.length > 1 && bestTime !== null ? Math.min(...g.times.filter(t => t !== bestTime)) : null;
+                const bestTimeStr = bestTime !== null ? formatTime(bestTime) : '—';
+                const secondTimeStr = secondTime !== null ? formatTime(secondTime) : '—';
+                const bestTimeClass = g.times.length > 0 && g.times[0] === bestTime ? 'best-time' : '';
                 return `
                     <tr>
                         <td>${index + 1}</td>
@@ -630,7 +640,7 @@
         // Get sorted groups
         function getSortedGroups() {
             const sorted = [...groups].map(g => {
-                const bestTime = Math.min(...g.times);
+                const bestTime = g.times.length > 0 ? Math.min(...g.times) : null;
                 return { ...g, bestTime };
             });
 
